@@ -1,0 +1,25 @@
+# n8n — otomasi workflow. Workflow di-versioning sebagai JSON di n8n/workflows/
+# (export/import lewat scripts/sync-from-vps.sh dan `make n8n-import`).
+
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:${N8N_IMAGE_TAG:-latest}
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${N8N_PORT:-5678}:5678"
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:?isi N8N_ENCRYPTION_KEY (samakan dengan yang lama agar credentials tetap terbaca)}
+      - GENERIC_TIMEZONE=${TZ:-Asia/Jakarta}
+      - TZ=${TZ:-Asia/Jakarta}
+      - N8N_RUNNERS_ENABLED=true
+      - N8N_DIAGNOSTICS_ENABLED=false
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflows:/workflows:ro
+
+volumes:
+  n8n_data:

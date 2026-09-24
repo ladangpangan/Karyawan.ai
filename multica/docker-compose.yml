@@ -1,0 +1,71 @@
+# Multica — platform manajemen agent (PostgreSQL + backend Go + frontend Next.js).
+# Diringkas dari docker-compose.selfhost.yml upstream (github.com/multica-ai/multica).
+# Variabel tambahan (SMTP, GitHub App, Slack, dll.) lihat multica/.env.example
+# dan dokumentasi upstream; tambahkan ke blok `environment` bila dipakai.
+
+services:
+  multica-postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: ${MULTICA_POSTGRES_DB:-multica}
+      POSTGRES_USER: ${MULTICA_POSTGRES_USER:-multica}
+      POSTGRES_PASSWORD: ${MULTICA_POSTGRES_PASSWORD:?isi MULTICA_POSTGRES_PASSWORD di .env}
+    volumes:
+      - multica_pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MULTICA_POSTGRES_USER:-multica} -d ${MULTICA_POSTGRES_DB:-multica}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  multica-backend:
+    image: ghcr.io/multica-ai/multica-backend:${MULTICA_IMAGE_TAG:-latest}
+    depends_on:
+      multica-postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${MULTICA_BACKEND_PORT:-8080}:8080"
+    volumes:
+      - multica_uploads:/app/data/uploads
+    environment:
+      DATABASE_URL: postgres://${MULTICA_POSTGRES_USER:-multica}:${MULTICA_POSTGRES_PASSWORD}@multica-postgres:5432/${MULTICA_POSTGRES_DB:-multica}?sslmode=disable
+      PORT: "8080"
+      APP_ENV: production
+      JWT_SECRET: ${MULTICA_JWT_SECRET:?isi MULTICA_JWT_SECRET (openssl rand -hex 32)}
+      FRONTEND_ORIGIN: ${MULTICA_APP_URL:-http://localhost:3000}
+      MULTICA_APP_URL: ${MULTICA_APP_URL:-http://localhost:3000}
+      MULTICA_PUBLIC_URL: ${MULTICA_PUBLIC_URL:-}
+      GOOGLE_REDIRECT_URI: ${MULTICA_APP_URL:-http://localhost:3000}/auth/callback
+      COOKIE_DOMAIN: ${MULTICA_COOKIE_DOMAIN:-}
+      ALLOW_SIGNUP: ${MULTICA_ALLOW_SIGNUP:-true}
+      ALLOWED_EMAILS: ${MULTICA_ALLOWED_EMAILS:-}
+      ALLOWED_EMAIL_DOMAINS: ${MULTICA_ALLOWED_EMAIL_DOMAINS:-}
+      RESEND_API_KEY: ${MULTICA_RESEND_API_KEY:-}
+      SMTP_HOST: ${MULTICA_SMTP_HOST:-}
+      SMTP_PORT: ${MULTICA_SMTP_PORT:-25}
+      SMTP_USERNAME: ${MULTICA_SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${MULTICA_SMTP_PASSWORD:-}
+      SMTP_FROM_EMAIL: ${MULTICA_SMTP_FROM_EMAIL:-}
+      GOOGLE_CLIENT_ID: ${MULTICA_GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${MULTICA_GOOGLE_CLIENT_SECRET:-}
+      MULTICA_LLM_API_KEY: ${MULTICA_LLM_API_KEY:-}
+      MULTICA_LLM_BASE_URL: ${MULTICA_LLM_BASE_URL:-}
+      MULTICA_LLM_DEFAULT_MODEL: ${MULTICA_LLM_DEFAULT_MODEL:-}
+      MULTICA_TRUSTED_PROXIES: ${MULTICA_TRUSTED_PROXIES:-}
+    restart: unless-stopped
+
+  multica-frontend:
+    image: ghcr.io/multica-ai/multica-web:${MULTICA_IMAGE_TAG:-latest}
+    depends_on:
+      - multica-backend
+    ports:
+      - "127.0.0.1:${MULTICA_FRONTEND_PORT:-3000}:3000"
+    environment:
+      HOSTNAME: "0.0.0.0"
+      REMOTE_API_URL: http://multica-backend:8080
+    restart: unless-stopped
+
+volumes:
+  multica_pgdata:
+  multica_uploads:

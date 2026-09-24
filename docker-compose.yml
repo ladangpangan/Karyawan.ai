@@ -1,0 +1,25 @@
+# Karyawan.ai — satu stack untuk Multica + Hermes Agent + n8n.
+#
+# Butuh Docker Compose v2.20+ (fitur `include`).
+#
+#   cp .env.example .env            # isi nilai-nilai rahasia
+#   docker compose up -d            # jalankan semuanya
+#   docker compose ps
+#
+# Semua port di-bind ke 127.0.0.1. Untuk akses publik, pasang reverse proxy
+# (Caddy / nginx / Traefik) yang meneruskan ke port-port di bawah.
+#
+#   Multica frontend : 127.0.0.1:${MULTICA_FRONTEND_PORT:-3000}
+#   Multica backend  : 127.0.0.1:${MULTICA_BACKEND_PORT:-8080}
+#   n8n              : 127.0.0.1:${N8N_PORT:-5678}
+#   Hermes dashboard : 127.0.0.1:9119 (network_mode: host)
+
+name: karyawan-ai
+
+include:
+  - path: multica/docker-compose.yml
+    env_file: .env
+  - path: hermes-agent/docker-compose.yml
+    env_file: .env
+  - path: n8n/docker-compose.yml
+    env_file: .env
