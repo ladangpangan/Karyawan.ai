@@ -8,7 +8,7 @@ mkdir -p "$HOME_DIR"
 for f in config.yaml SOUL.md; do
   [[ -f "$ROOT/hermes-agent/config/$f" ]] && cp "$ROOT/hermes-agent/config/$f" "$HOME_DIR/$f"
 done
-for d in skills cron memories; do
+for d in skills cron memories profiles; do
   [[ -n "$(ls -A "$ROOT/hermes-agent/$d" 2>/dev/null | grep -v '^.gitkeep$')" ]] || continue
   mkdir -p "$HOME_DIR/$d"
   cp -a "$ROOT/hermes-agent/$d/." "$HOME_DIR/$d/"

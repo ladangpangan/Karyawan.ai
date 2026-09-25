@@ -81,9 +81,11 @@ Lihat hasilnya dan cek. Kalau ada yang gagal, perbaiki prompt dan generate ulang
 - [ ] Tidak berantakan; ada ruang kosong
 - [ ] Rasio sesuai platform
 
-Jika tipografi tetap salah setelah 2 kali, generate versi TANPA teks lalu
-tambahkan teks/logo sebagai overlay (mis. dengan Python/Pillow atau HTML→PNG)
-memakai font yang rapi. Ini lebih baik daripada mengirim teks yang salah eja.
+Jika tipografi tetap salah setelah 2 kali, sederhanakan teks di gambar
+(headline saja) dan pindahkan info lain ke caption. Jika profil agent
+mewajibkan generate lewat webhook (mis. SOUL Raka), jangan generate atau
+overlay lokal — semua perbaikan dilakukan lewat prompt dan panggilan ulang
+webhook.
 
 ## 6. Kirim ke user
 
