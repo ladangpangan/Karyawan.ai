@@ -1,4 +1,4 @@
-.PHONY: help up down restart ps logs pull sync sync-push n8n-import hermes-restore
+.PHONY: help up down restart ps logs pull sync sync-push n8n-import hermes-restore hermes-profile
 
 help:
 	@echo "make up             - jalankan Multica + Hermes + n8n"
@@ -9,6 +9,7 @@ help:
 	@echo "make sync-push      - sync + commit + push"
 	@echo "make n8n-import     - import n8n/workflows/*.json ke n8n"
 	@echo "make hermes-restore - salin konfigurasi Hermes dari repo ke ~/.hermes"
+	@echo "make hermes-profile P=marlinata - pasang SOUL.md + skills profil Hermes"
 
 up:
 	docker compose up -d
@@ -39,3 +40,6 @@ n8n-import:
 
 hermes-restore:
 	./scripts/hermes-restore.sh
+
+hermes-profile:
+	./scripts/hermes-install-profile.sh $(P)
