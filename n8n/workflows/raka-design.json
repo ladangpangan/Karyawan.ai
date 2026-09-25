@@ -1,0 +1,373 @@
+{
+  "name": "Raka - Design Graphic (Nano Banana Pro)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "raka-design",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "bd661e0b-1a12-4ef1-ace3-5005390a726a",
+      "name": "Webhook",
+      "webhookId": "422576f2-157c-4926-bfbd-12a6d8242859",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "565f51ff-a098-4e5e-ad99-6932e07d5bc5",
+              "leftValue": "={{ $json.body.jenis_materi }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "20474821-108a-4292-8cd1-18fb189d7f39",
+              "leftValue": "={{ $json.body.deskripsi_visual }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "f994e244-c062-4390-be7b-690ff3a23736",
+              "leftValue": "={{ $json.body.dimensi }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "7c2f0a51-3d0e-4b8e-9a61-2f5d1c9e4b10",
+              "leftValue": "={{ $json.body.issue_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d1ba4762-e93b-4f99-a2ae-1f9ffefabf66",
+      "name": "Validasi Payload",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $input.first().json.body;\nconst teks = b.teks_presisi || {};\n\n// Model di OpenRouter. \"nano-banana-pro\" = kualitas final, \"nano-banana\" = draf cepat.\nconst MODEL = {\n  'nano-banana-pro': 'google/gemini-3-pro-image-preview',\n  'nano-banana': 'google/gemini-2.5-flash-image',\n};\nconst model = b.model === 'nano-banana' ? 'nano-banana' : 'nano-banana-pro';\n\n// Rasio: ambil \"4:5\" dari \"4:5 1080x1350\", atau hitung dari \"1080x1350\".\nconst dim = String(b.dimensi);\nlet ratio = (dim.match(/\\d+\\s*:\\s*\\d+/) || [''])[0].replace(/\\s/g, '');\nconst px = dim.match(/(\\d{3,5})\\s*[x×]\\s*(\\d{3,5})/);\nif (!ratio && px) {\n  const g = (a, c) => (c ? g(c, a % c) : a);\n  const d = g(+px[1], +px[2]);\n  ratio = `${px[1] / d}:${px[2] / d}`;\n}\nratio = ratio || '1:1';\n\nconst label = { headline: 'Headline (largest, most prominent)', subheadline: 'Subheadline', harga: 'Price badge', cta: 'Call-to-action button' };\nconst teksLines = Object.entries(teks)\n  .filter(([, v]) => v !== null && String(v).trim() !== '')\n  .map(([k, v]) => `- ${label[k] || k}: \"${String(v).trim()}\"`);\n\nconst parts = [\n  `Professional ${b.jenis_materi} design, aspect ratio ${ratio}${px ? ` (${px[1]}x${px[2]} px)` : ''}, full-bleed composition filling the entire ${ratio} frame.`,\n  String(b.deskripsi_visual).trim(),\n  teksLines.length\n    ? `TEXT TO RENDER — render ONLY these texts, spelled EXACTLY as written (keep capitalization, numbers and \"Rp\" format), sharp and highly legible, with clear hierarchy:\\n${teksLines.join('\\n')}\\nDo not add any other words.`\n    : 'Do not render any text, letters or numbers in the image.',\n  b.catatan_brand ? `Brand guidelines: ${b.catatan_brand}` : '',\n  'Quality: award-winning commercial advertising design, appetizing, ultra detailed, crisp edges, balanced negative space, high contrast between text and background.',\n  'Avoid: misspelled or garbled text, extra random text, watermark, fake or third-party logos, cluttered layout, deformed or plastic-looking food, claims/prices/promos not listed above.',\n].filter(Boolean);\n\nreturn [{ json: {\n  issue_id: String(b.issue_id),\n  jenis_materi: b.jenis_materi,\n  model,\n  openrouter_model: MODEL[model],\n  dimensi: dim,\n  aspect_ratio: ratio,\n  teks_presisi: teks,\n  prompt: parts.join('\\n\\n'),\n} }];"
+      },
+      "id": "e63469be-71bb-49ee-bf34-9866f3236f18",
+      "name": "Susun Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -96
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "toBinary",
+        "sourceProperty": "data[0].b64_json",
+        "binaryPropertyName": "image",
+        "options": {
+          "fileName": "=design-{{ $('Susun Prompt').item.json.issue_id }}-{{ $now.toFormat('yyyyMMdd-HHmmss') }}.png"
+        }
+      },
+      "id": "0d88efa5-f157-4222-9d4d-4ee1a9a056f1",
+      "name": "Konversi ke Gambar",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        832,
+        48
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "image",
+        "name": "=design-{{ $('Susun Prompt').item.json.issue_id }}-{{ $now.toFormat('yyyyMMdd-HHmmss') }}",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1HehZg41L-4enox72LBf7aHOvqKh6zuIF",
+          "mode": "list",
+          "cachedResultName": "8. TIM AI",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1HehZg41L-4enox72LBf7aHOvqKh6zuIF"
+        },
+        "options": {}
+      },
+      "id": "bf7502d7-90c0-4056-9ff9-87e0da9552a9",
+      "name": "Upload ke Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1056,
+        48
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "aeQoSQPRAIHqVF89",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "share",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "permissionsUi": {
+          "permissionsValues": {
+            "role": "reader",
+            "type": "anyone"
+          }
+        },
+        "options": {}
+      },
+      "id": "7aa2b8fc-31fe-4508-966f-159e96e54115",
+      "name": "Share File (Public Link)",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1280,
+        48
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "aeQoSQPRAIHqVF89",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'sukses', drive_link: $('Upload ke Google Drive').item.json.webViewLink, model: $('Susun Prompt').item.json.openrouter_model, aspect_ratio: $('Susun Prompt').item.json.aspect_ratio }) }}",
+        "options": {}
+      },
+      "id": "8be54e12-21cb-43fc-a922-dda6b8d583c0",
+      "name": "Respond Sukses",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1056,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"gagal\",\n  \"alasan\": \"Payload tidak lengkap. Field wajib: issue_id, jenis_materi, deskripsi_visual, dimensi.\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "e80bece9-610f-40a0-a1cf-e75f0a418c2c",
+      "name": "Respond Gagal (Validasi)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://openrouter.ai/api/v1/images",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: $json.openrouter_model, prompt: $json.prompt }) }}",
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "c07fe3b3-298d-483a-8462-07eb704406e9",
+      "name": "Panggil OpenRouter API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        608,
+        48
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "b67mY3em7IL2XpnB",
+          "name": "OpenRouter API Key (Seedream)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'gagal', alasan: 'Generate gambar gagal: ' + ($json.error?.message || $json.error || 'respons model tidak berisi gambar') }) }}",
+        "options": {
+          "responseCode": 502
+        }
+      },
+      "id": "3f6b9d2e-8a41-4c7f-b5e0-6d1a2c9f8e71",
+      "name": "Respond Gagal (Generate)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1056,
+        352
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validasi Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validasi Payload": {
+      "main": [
+        [
+          {
+            "node": "Susun Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Gagal (Validasi)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Prompt": {
+      "main": [
+        [
+          {
+            "node": "Panggil OpenRouter API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Konversi ke Gambar": {
+      "main": [
+        [
+          {
+            "node": "Upload ke Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Gagal (Generate)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload ke Google Drive": {
+      "main": [
+        [
+          {
+            "node": "Share File (Public Link)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share File (Public Link)": {
+      "main": [
+        [
+          {
+            "node": "Respond Sukses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Panggil OpenRouter API": {
+      "main": [
+        [
+          {
+            "node": "Konversi ke Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Gagal (Generate)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "10225046-d08a-4a64-879c-b38ff7237c34",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "925969e2769a9f82cd3f1ddba035fcb5342038ae71937c53a8cd79b0098b03cd"
+  },
+  "nodeGroups": [],
+  "id": "zSnNe1wX1q6NdnNg",
+  "tags": []
+}
