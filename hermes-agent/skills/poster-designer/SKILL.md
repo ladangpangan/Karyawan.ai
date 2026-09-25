@@ -1,96 +1,76 @@
 ---
 name: poster-designer
-description: Desain poster/iklan gambar kualitas profesional (feed IG, story, banner, flyer promo). Pakai skill ini setiap kali user minta poster, flyer, banner, konten promo, atau gambar iklan berisi teks.
+description: Cara mendesain poster (promo, event, katalog, cetak A4) dan konten Instagram (feed, carousel, story) berkualitas profesional, termasuk membaca poster referensi dan memakai logo perusahaan. Pakai setiap kali user minta poster, flyer, banner, feed/story Instagram, atau gambar iklan.
 ---
 
-# Poster Designer (Raka)
+# Poster Designer
 
-Kamu adalah desainer poster senior. Tugasmu BUKAN langsung generate gambar,
-tapi menjalankan proses desain: brief → konsep → prompt terstruktur →
-generate → review → revisi. Kualitas datang dari proses ini, bukan dari
-satu prompt pendek.
+Kualitas datang dari proses: brief → pelajari referensi → konsep → prompt
+terstruktur → generate → laporan. Jangan langsung generate dari satu kalimat.
 
-## 1. Kumpulkan brief (wajib sebelum generate)
+## 1. Brief
 
-Kalau informasi di bawah belum ada, tanyakan SEKALI dalam satu pesan singkat
-(maks 5 pertanyaan). Kalau user bilang "terserah", pakai default yang masuk akal.
+Pastikan jelas (kalau kurang, tanya SEKALI, maks 5 pertanyaan):
+- Tujuan: promo/diskon, produk baru, event, katalog, edukasi, awareness
+- Teks persis: headline, subheadline, harga, CTA
+- Format (lihat tabel), target audiens
+- Poster referensi yang diinginkan (link Drive)
 
-- Produk/brand + 1 kalimat apa yang dijual
-- Tujuan poster: promo/diskon, launching, event, awareness, rekrutmen
-- Headline utama (teks persis) + sub-teks + CTA + info (harga, tanggal, kontak)
-- Target audiens
-- Format: 1:1 feed (1080×1080), 4:5 feed (1080×1350), 9:16 story (1080×1920), A4/landscape
-- Aset: logo, foto produk, warna brand (hex), font — minta di-upload jika ada
-- Referensi gaya (poster yang disukai) — sangat membantu
+| Kebutuhan | dimensi | Catatan desain |
+|---|---|---|
+| Poster cetak | `A4` / `A4 landscape` | Info boleh lebih lengkap, headline terbaca dari 2 meter |
+| Feed Instagram | `4:5 1080x1350` | Paling efektif di feed; headline ≤ 6 kata |
+| Feed persegi / carousel | `1:1 1080x1080` | Carousel: 1 konsep per slide, gaya seragam |
+| Story / Reels cover | `9:16 1080x1920` | Kosongkan 250px atas & bawah (area UI Instagram) |
 
-## 2. Tentukan konsep (tulis singkat ke user sebelum generate)
+## 2. Pelajari referensi (kalau ada)
 
-Pilih dan sebutkan:
-- **Big idea**: 1 kalimat metafora/visual utama (contoh: "produk melayang di atas
-  ledakan buah segar", "maskot robot sedang mendesain di meja kerja")
-- **Gaya visual**: bold typographic, 3D render, editorial photo, flat illustration,
-  retro, cinematic, dll.
-- **Palet**: 2–3 warna utama + 1 aksen kontras (pakai warna brand jika ada)
-- **Hierarki**: Headline (paling besar) → visual utama → sub-teks → CTA → logo/info
-- **Layout**: di mana headline, di mana visual, ruang kosong (negative space)
+Referensi = standar minimal. Lihat gambarnya lalu tulis ke user:
+- **Layout**: posisi headline, produk, harga, CTA; proporsi ruang kosong
+- **Hierarki**: urutan mata membaca
+- **Tipografi**: jenis huruf (bold condensed, rounded, serif), ukuran relatif
+- **Warna & cahaya**: palet dominan, kontras, gaya foto/ilustrasi
+- **Mood**: premium, ceria, hangat, segar, dll.
+Tanya: "Apakah ini yang Bapak/Ibu suka dari referensi ini?" lalu lanjut.
+Ambil GAYA-nya saja; teks, produk, dan logo tetap milik Ladang Pangan.
 
-## 3. Tulis prompt gambar terstruktur
+## 3. Konsep
 
-Prompt selalu dalam bahasa Inggris, panjang dan spesifik, dengan urutan ini:
+Ajukan 2–3 arah berbeda (bukan sekadar beda warna). Tiap konsep:
+big idea 1 kalimat, gaya visual, palet (hex dari MEMORY.md), layout. Tunggu setuju.
 
-```
-[FORMAT] Professional advertising poster, {aspect ratio}, {gaya visual}.
-[SUBJECT] {visual utama, detail material, pose, ekspresi, properti}.
-[COMPOSITION] {posisi subject}, {rule of thirds / centered}, clear visual hierarchy,
-  generous negative space for text at {top/bottom/left}.
-[TYPOGRAPHY] Large bold headline text reading exactly "{HEADLINE}" in {gaya font,
-  mis. heavy condensed sans-serif}, {warna}. Smaller subheadline "{SUB}".
-  CTA button/badge with text "{CTA}". All text sharp, correctly spelled, legible.
-[COLOR & LIGHT] {palet dengan hex}, {pencahayaan: studio rim light / golden hour /
-  neon glow}, high contrast.
-[DETAILS] {elemen pendukung: badge diskon, ikon, tekstur, partikel, bayangan}.
-[QUALITY] award-winning graphic design, commercial ad quality, ultra detailed,
-  crisp edges, 4k.
-[AVOID] no misspelled text, no extra random text, no watermark, no distorted
-  hands or faces, no cluttered layout, no low resolution.
-```
+## 4. Tulis deskripsi_visual (bahasa Inggris, 120–250 kata)
 
-Aturan teks:
-- Maksimal ±3 blok teks di dalam gambar (headline, sub, CTA). Teks yang panjang
-  (alamat, S&K, nomor HP) jangan dirender oleh model — tambahkan belakangan
-  sebagai overlay (lihat langkah 5).
-- Tulis teks persis dalam tanda kutip. Hindari kata yang sangat panjang.
+Urutan:
+1. **STYLE**: gaya visual + kaitannya dengan referensi
+   ("clean commercial food photography, layout inspired by the reference: ...")
+2. **SUBJECT**: produk dengan detail nyata — ayam golden crispy, juicy, uap
+   panas, piring, garnish segar; kemasan frozen dengan es jika relevan
+3. **COMPOSITION**: posisi subject, area kosong untuk teks, posisi harga & CTA
+4. **TYPOGRAPHY**: gaya huruf dan warna teks (isi teksnya di teks_presisi,
+   workflow otomatis menyisipkannya)
+5. **COLOR & LIGHT**: palet hex, pencahayaan (soft studio, natural daylight, rim light)
+6. **DETAILS**: badge diskon, ikon halal, tekstur, dekorasi
 
-## 4. Generate beberapa varian
+Aturan: maksimal 3–4 blok teks di gambar. Info panjang (alamat, S&K, nomor
+HP) taruh di caption, bukan di gambar.
 
-- Buat 2–4 varian (beda konsep/layout, bukan hanya beda seed).
-- Pakai model gambar yang kuat untuk teks & desain grafis. Kalau ada pilihan,
-  prioritaskan model yang bagus merender tipografi.
-- Jika user memberi foto produk/logo, pakai mode image-to-image / edit dengan
-  referensi agar produk asli tetap dipakai, bukan dikarang ulang.
+## 5. Generate
 
-## 5. Review diri sendiri sebelum mengirim (quality gate)
+- Default `model: "nano-banana-pro"`. Pakai `"nano-banana"` hanya untuk draf cepat.
+- Selalu isi `logo_url` dari MEMORY.md dan `referensi_gambar` jika ada.
+- Satu panggilan webhook per konsep.
 
-Lihat hasilnya dan cek. Kalau ada yang gagal, perbaiki prompt dan generate ulang
-(maks 2 kali) sebelum mengirim ke user:
+## 6. Laporan
 
-- [ ] Semua teks terbaca dan ejaannya benar persis seperti brief
-- [ ] Headline adalah elemen yang paling menonjol (terbaca dalam 1 detik)
-- [ ] Produk/subject jelas, tidak cacat (tangan, wajah, logo)
-- [ ] Kontras teks vs background cukup
-- [ ] Tidak berantakan; ada ruang kosong
+Kirim link hasil + alasan tiap konsep + saran caption Instagram (jika feed/story),
+dan checklist review:
+- [ ] Ejaan teks & harga sesuai brief
+- [ ] Logo tidak berubah bentuk
+- [ ] Produk terlihat menggugah selera
+- [ ] Setara atau lebih baik dari referensi
 - [ ] Rasio sesuai platform
 
-Jika tipografi tetap salah setelah 2 kali, sederhanakan teks di gambar
-(headline saja) dan pindahkan info lain ke caption. Jika profil agent
-mewajibkan generate lewat webhook (mis. SOUL Raka), jangan generate atau
-overlay lokal — semua perbaikan dilakukan lewat prompt dan panggilan ulang
-webhook.
-
-## 6. Kirim ke user
-
-- Kirim varian terbaik + 1 kalimat alasan konsep tiap varian.
-- Tawarkan revisi spesifik: "mau headline lebih besar / warna lebih cerah /
-  ganti ke format story?"
-- Simpan preferensi user (warna brand, gaya yang disukai) ke memori untuk
-  permintaan berikutnya.
+Kalau teks salah eja atau logo rusak: panggil ulang dengan prompt yang lebih
+tegas, atau ganti model ke nano-banana-pro. Simpan preferensi user
+(gaya yang disukai) ke memori.

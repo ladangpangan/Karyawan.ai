@@ -1,5 +1,5 @@
 {
-  "name": "Raka - Design Graphic (Seedream)",
+  "name": "Raka - Design Graphic",
   "nodes": [
     {
       "parameters": {
@@ -84,24 +84,69 @@
     },
     {
       "parameters": {
-        "jsCode": "const b = $input.first().json.body;\nconst teks = b.teks_presisi || {};\n\n// Model di OpenRouter (Seedream). \"nano-banana-pro\" = kualitas final, \"nano-banana\" = draf cepat.\nconst MODEL = {\n  'nano-banana-pro': 'bytedance-seed/seedream-4.5',\n  'nano-banana': 'bytedance-seed/seedream-5-0-lite',\n};\nconst model = b.model === 'nano-banana' ? 'nano-banana' : 'nano-banana-pro';\n\n// Rasio: ambil \"4:5\" dari \"4:5 1080x1350\", atau hitung dari \"1080x1350\".\nconst dim = String(b.dimensi);\nlet ratio = (dim.match(/\\d+\\s*:\\s*\\d+/) || [''])[0].replace(/\\s/g, '');\nconst px = dim.match(/(\\d{3,5})\\s*[x×]\\s*(\\d{3,5})/);\nif (!ratio && px) {\n  const g = (a, c) => (c ? g(c, a % c) : a);\n  const d = g(+px[1], +px[2]);\n  ratio = `${px[1] / d}:${px[2] / d}`;\n}\n// Ukuran kertas A4 (210x297 mm). Default potret; tulis \"A4 landscape\" untuk mendatar.\nif (!ratio && /\\bA4\\b/i.test(dim)) {\n  ratio = /landscape|mendatar/i.test(dim) ? '1.414:1 (A4 landscape, 297x210 mm)' : '1:1.414 (A4 portrait, 210x297 mm, print poster)';\n}\nratio = ratio || '1:1';\n\nconst label = { headline: 'Headline (largest, most prominent)', subheadline: 'Subheadline', harga: 'Price badge', cta: 'Call-to-action button' };\nconst teksLines = Object.entries(teks)\n  .filter(([, v]) => v !== null && String(v).trim() !== '')\n  .map(([k, v]) => `- ${label[k] || k}: \"${String(v).trim()}\"`);\n\nconst parts = [\n  `Professional ${b.jenis_materi} design, aspect ratio ${ratio}${px ? ` (${px[1]}x${px[2]} px)` : ''}, full-bleed composition filling the entire ${ratio} frame.`,\n  String(b.deskripsi_visual).trim(),\n  teksLines.length\n    ? `TEXT TO RENDER — render ONLY these texts, spelled EXACTLY as written (keep capitalization, numbers and \"Rp\" format), sharp and highly legible, with clear hierarchy:\\n${teksLines.join('\\n')}\\nDo not add any other words.`\n    : 'Do not render any text, letters or numbers in the image.',\n  b.catatan_brand ? `Brand guidelines: ${b.catatan_brand}` : '',\n  'Quality: award-winning commercial advertising design, appetizing, ultra detailed, crisp edges, balanced negative space, high contrast between text and background.',\n  'Avoid: misspelled or garbled text, extra random text, watermark, fake or third-party logos, cluttered layout, deformed or plastic-looking food, claims/prices/promos not listed above.',\n].filter(Boolean);\n\nreturn [{ json: {\n  issue_id: String(b.issue_id),\n  jenis_materi: b.jenis_materi,\n  model,\n  openrouter_model: MODEL[model],\n  dimensi: dim,\n  aspect_ratio: ratio,\n  teks_presisi: teks,\n  prompt: parts.join('\\n\\n'),\n} }];"
+        "jsCode": "// === Pengaturan ===\n// ID model gambar di OpenRouter. Cek nama persisnya di openrouter.ai/models jika ada error \"model not found\".\nconst MODEL = {\n  'nano-banana-pro': 'google/gemini-3-pro-image-preview', // hasil final (teks & logo paling rapi)\n  'nano-banana': 'google/gemini-2.5-flash-image',         // draf cepat & murah\n  'seedream': 'bytedance-seed/seedream-4.5',               // alternatif\n};\nconst MAX_REFERENSI = 3;\n\nconst b = $input.first().json.body;\nconst modelKey = MODEL[b.model] ? b.model : 'nano-banana-pro';\nconst dim = String(b.dimensi);\n\n// --- Rasio: A4, \"4:5\", atau \"1080x1350\" -> rasio terdekat yang didukung model ---\nlet w, h, label;\nconst r = dim.match(/(\\d+(?:\\.\\d+)?)\\s*:\\s*(\\d+(?:\\.\\d+)?)/);\nconst px = dim.match(/(\\d{3,5})\\s*[x×]\\s*(\\d{3,5})/);\nif (/\\bA4\\b/i.test(dim)) {\n  const land = /landscape|mendatar/i.test(dim);\n  [w, h] = land ? [297, 210] : [210, 297];\n  label = `A4 ${land ? 'landscape' : 'portrait'} print poster`;\n} else if (r) { [w, h] = [+r[1], +r[2]]; label = `${r[1]}:${r[2]}`; }\nelse if (px) { [w, h] = [+px[1], +px[2]]; label = `${px[1]}x${px[2]} px`; }\nelse { [w, h] = [1, 1]; label = '1:1'; }\nconst SUPPORTED = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'];\nconst aspect_ratio = SUPPORTED.reduce((best, s) => {\n  const [a, c] = s.split(':').map(Number);\n  const [x, y] = best.split(':').map(Number);\n  return Math.abs(Math.log(a / c / (w / h))) < Math.abs(Math.log(x / y / (w / h))) ? s : best;\n});\n\n// --- Ambil gambar (logo & referensi) lalu kirim sebagai base64 ---\nconst helpers = this.helpers;\nasync function ambilGambar(link) {\n  let url = String(link).trim();\n  const id = url.match(/drive\\.google\\.com\\/(?:file\\/d\\/|open\\?id=|uc\\?(?:.*&)?id=)([\\w-]+)/);\n  if (id) url = `https://drive.google.com/uc?export=download&id=${id[1]}`;\n  const res = await helpers.httpRequest({ url, encoding: 'arraybuffer', returnFullResponse: true });\n  const type = String(res.headers['content-type'] || '').split(';')[0];\n  if (!type.startsWith('image/')) {\n    throw new Error(`Link bukan gambar (${type || 'tanpa tipe'}): ${link}. Pastikan akses Drive \"Siapa saja yang memiliki link\".`);\n  }\n  return { type: 'image_url', image_url: { url: `data:${type};base64,${Buffer.from(res.body).toString('base64')}` } };\n}\n\nconst images = [];\nconst catatanGambar = [];\nif (b.logo_url) {\n  images.push(await ambilGambar(b.logo_url));\n  catatanGambar.push(`Image ${images.length} is the company LOGO. Place this exact logo, unchanged (same shape, colors and lettering, do not redraw or restyle it), ${b.posisi_logo || 'in the top-left corner'}, small but clearly visible, with enough contrast against the background.`);\n}\nconst refs = (Array.isArray(b.referensi_gambar) ? b.referensi_gambar : []).filter(Boolean).slice(0, MAX_REFERENSI);\nif (refs.length) {\n  const start = images.length + 1;\n  for (const link of refs) images.push(await ambilGambar(link));\n  const idx = refs.length === 1 ? `Image ${start} is` : `Images ${start}-${images.length} are`;\n  catatanGambar.push(`${idx} STYLE REFERENCES chosen by the client as the minimum quality standard. Match or exceed their layout quality, visual hierarchy, typography style, color treatment, lighting and level of polish. Do NOT copy their text, products, logos or brand names.`);\n}\n\n// --- Teks yang wajib dirender ---\nconst teks = b.teks_presisi || {};\nconst namaTeks = { headline: 'Headline (largest, most prominent)', subheadline: 'Subheadline', harga: 'Price badge', cta: 'Call-to-action button' };\nconst baris = Object.entries(teks)\n  .filter(([, v]) => v !== null && v !== undefined && String(v).trim() !== '')\n  .map(([k, v]) => `- ${namaTeks[k] || k}: \"${String(v).trim()}\"`);\n\nconst prompt = [\n  `Create a professional ${b.jenis_materi} design, ${label}, aspect ratio ${aspect_ratio}, full-bleed composition filling the entire frame.`,\n  ...catatanGambar,\n  String(b.deskripsi_visual).trim(),\n  baris.length\n    ? `TEXT TO RENDER — render ONLY these texts, spelled EXACTLY as written (same capitalization, numbers and \"Rp\" format), sharp and highly legible, with clear hierarchy:\\n${baris.join('\\n')}\\nDo not add any other words.`\n    : `Do not render any text, letters or numbers${b.logo_url ? ' except the logo' : ''}.`,\n  b.catatan_brand ? `Brand guidelines: ${b.catatan_brand}` : '',\n  'Quality: award-winning commercial advertising design, appetizing, ultra detailed, crisp edges, balanced negative space, high contrast between text and background.',\n  'Avoid: misspelled or garbled text, extra random text, watermark, third-party logos, cluttered layout, deformed or plastic-looking food, claims/prices/promos not listed above.',\n].filter(Boolean).join('\\n\\n');\n\nreturn [{ json: {\n  issue_id: String(b.issue_id),\n  model: MODEL[modelKey],\n  aspect_ratio,\n  jumlah_referensi: refs.length,\n  pakai_logo: Boolean(b.logo_url),\n  request: {\n    model: MODEL[modelKey],\n    modalities: ['image', 'text'],\n    messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, ...images] }],\n    image_config: { aspect_ratio },\n  },\n} }];\n"
       },
       "id": "e63469be-71bb-49ee-bf34-9866f3236f18",
-      "name": "Susun Prompt",
+      "name": "Susun Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         448,
         -96
-      ]
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.request) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "c07fe3b3-298d-483a-8462-07eb704406e9",
+      "name": "Panggil OpenRouter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        -96
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "b67mY3em7IL2XpnB",
+          "name": "OpenRouter API Key (Seedream)"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Ambil gambar dari respons OpenRouter (beberapa format didukung).\nconst r = $input.first().json;\nconst msg = (r.choices && r.choices[0] && r.choices[0].message) || {};\nlet src = (msg.images && msg.images[0] && msg.images[0].image_url && msg.images[0].image_url.url)\n  || (r.data && r.data[0] && (r.data[0].b64_json || r.data[0].url));\nif (!src) {\n  const alasan = (r.error && r.error.message) || (typeof msg.content === 'string' && msg.content.slice(0, 300)) || 'respons model tidak berisi gambar';\n  throw new Error(alasan);\n}\nlet b64, mime = 'image/png';\nconst dataUrl = String(src).match(/^data:([^;]+);base64,(.+)$/s);\nif (dataUrl) { mime = dataUrl[1]; b64 = dataUrl[2]; }\nelse if (/^https?:\\/\\//.test(src)) {\n  const res = await this.helpers.httpRequest({ url: src, encoding: 'arraybuffer', returnFullResponse: true });\n  mime = String(res.headers['content-type'] || mime).split(';')[0];\n  b64 = Buffer.from(res.body).toString('base64');\n} else { b64 = src; }\nconst ext = mime.split('/')[1] === 'jpeg' ? 'jpg' : (mime.split('/')[1] || 'png');\nreturn [{ json: { b64, mime, ext } }];\n"
+      },
+      "id": "5a1e7c3d-2b4f-4e8a-9c6d-1f0b3a7e9d21",
+      "name": "Ambil Gambar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -96
+      ],
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "operation": "toBinary",
-        "sourceProperty": "data[0].b64_json",
+        "sourceProperty": "b64",
         "binaryPropertyName": "image",
         "options": {
-          "fileName": "=design-{{ $('Susun Prompt').item.json.issue_id }}-{{ $now.toFormat('yyyyMMdd-HHmmss') }}.png"
+          "fileName": "=design-{{ $('Susun Request').item.json.issue_id }}-{{ $now.toFormat('yyyyMMdd-HHmmss') }}.{{ $json.ext }}",
+          "mimeType": "={{ $json.mime }}"
         }
       },
       "id": "0d88efa5-f157-4222-9d4d-4ee1a9a056f1",
@@ -109,15 +154,14 @@
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
-        832,
-        48
-      ],
-      "onError": "continueErrorOutput"
+        1120,
+        -96
+      ]
     },
     {
       "parameters": {
         "inputDataFieldName": "image",
-        "name": "=design-{{ $('Susun Prompt').item.json.issue_id }}-{{ $now.toFormat('yyyyMMdd-HHmmss') }}",
+        "name": "=design-{{ $('Susun Request').item.json.issue_id }}-{{ $now.toFormat('yyyyMMdd-HHmmss') }}",
         "driveId": {
           "__rl": true,
           "mode": "list",
@@ -137,8 +181,8 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        1056,
-        48
+        1344,
+        -96
       ],
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -168,8 +212,8 @@
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        1280,
-        48
+        1568,
+        -96
       ],
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -181,7 +225,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ status: 'sukses', drive_link: $('Upload ke Google Drive').item.json.webViewLink, model: $('Susun Prompt').item.json.openrouter_model, aspect_ratio: $('Susun Prompt').item.json.aspect_ratio }) }}",
+        "responseBody": "={{ JSON.stringify({ status: 'sukses', drive_link: $('Upload ke Google Drive').item.json.webViewLink, model: $('Susun Request').item.json.model, aspect_ratio: $('Susun Request').item.json.aspect_ratio, pakai_logo: $('Susun Request').item.json.pakai_logo, jumlah_referensi: $('Susun Request').item.json.jumlah_referensi }) }}",
         "options": {}
       },
       "id": "8be54e12-21cb-43fc-a922-dda6b8d583c0",
@@ -189,8 +233,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1056,
-        192
+        1792,
+        -96
       ]
     },
     {
@@ -212,37 +256,8 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://openrouter.ai/api/v1/images",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: $json.openrouter_model, prompt: $json.prompt }) }}",
-        "options": {
-          "timeout": 180000
-        }
-      },
-      "id": "c07fe3b3-298d-483a-8462-07eb704406e9",
-      "name": "Panggil OpenRouter API (Seedream)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.5,
-      "position": [
-        608,
-        48
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "b67mY3em7IL2XpnB",
-          "name": "OpenRouter API Key (Seedream)"
-        }
-      },
-      "onError": "continueErrorOutput"
-    },
-    {
-      "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ status: 'gagal', alasan: 'Generate gambar gagal: ' + ($json.error?.message || $json.error || 'respons model tidak berisi gambar') }) }}",
+        "responseBody": "={{ JSON.stringify({ status: 'gagal', alasan: String($json.error?.message || $json.error?.description || $json.error || $json.message || 'generate gambar gagal') }) }}",
         "options": {
           "responseCode": 502
         }
@@ -252,8 +267,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1056,
-        352
+        1120,
+        160
       ]
     }
   ],
@@ -273,7 +288,7 @@
       "main": [
         [
           {
-            "node": "Susun Prompt",
+            "node": "Susun Request",
             "type": "main",
             "index": 0
           }
@@ -287,11 +302,54 @@
         ]
       ]
     },
-    "Susun Prompt": {
+    "Susun Request": {
       "main": [
         [
           {
-            "node": "Panggil OpenRouter API (Seedream)",
+            "node": "Panggil OpenRouter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Gagal (Generate)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Panggil OpenRouter": {
+      "main": [
+        [
+          {
+            "node": "Ambil Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Gagal (Generate)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil Gambar": {
+      "main": [
+        [
+          {
+            "node": "Konversi ke Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Gagal (Generate)",
             "type": "main",
             "index": 0
           }
@@ -303,13 +361,6 @@
         [
           {
             "node": "Upload ke Google Drive",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond Gagal (Generate)",
             "type": "main",
             "index": 0
           }
@@ -332,24 +383,6 @@
         [
           {
             "node": "Respond Sukses",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Panggil OpenRouter API (Seedream)": {
-      "main": [
-        [
-          {
-            "node": "Konversi ke Gambar",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond Gagal (Generate)",
             "type": "main",
             "index": 0
           }
